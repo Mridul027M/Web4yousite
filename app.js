@@ -4,49 +4,65 @@
 // ----Requirements----
 const express = require("express");
 const bodyParser = require("body-parser");
-const ejs = require("ejs");
 const mongoose = require("mongoose");
+const { identity, remove } = require("lodash");
 
+const adminRoutes = require('./routes/admin')
+const multer = require('multer');
 
 const app = express();
+
+const filestorage =  multer.diskStorage({
+    destination : (req,file,cb)=>{
+        cb(null,'./images');
+    },
+    filename : (req,file,cb)=> {
+        cb(null,file.fieldname + Date.now() + '-' + file.originalname )
+    }
+})
+
+const filefilter = (req,file,cb) => {
+    if(file.mimetype === 'image/jpg'
+       || file.mimetype === 'image/jpeg'
+       || file.mimetype === 'image/png'){
+           cb(null,true)
+       }else{
+           cb(null,false)
+       }
+}
+
 
 app.set('view engine', 'ejs');
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static("public"));
 
+// ----Startng the database----
 
 mongoose.connect("mongodb://localhost:27017/web4you", {useNewUrlParser: true});
 
-const postSchema = {
-    title: String,
-    content: String
-};
-
-const Post = mongoose.model("Post", postSchema);
 
 
-app.get("/",function(req,res){
-    res.render("home");
-});
 
-app.get("/compose",function(req,res){
-    res.render("compose");
-});
+var delID;
 
-app.post("/compose",function(req,res){
-    const post = new Post({
-        title: req.body.postTitle,
-        content: req.body.postBody
-      });
 
-      post.save(function(err){
-        if (!err){
-            res.redirect("/");
-        }
-      });
-    res.redirect("/");
-});
+
+
+app.use('/images',express.static("images"));
+app.use(multer (
+      {
+        storage : filestorage,
+        fileFilter : filefilter
+     }
+ ).single('postimg')
+)
+
+
+
+app.use(adminRoutes);
+
+
 
 app.listen(3000, function() {
     console.log("Server started on port 3000");
